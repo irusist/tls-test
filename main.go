@@ -1,7 +1,11 @@
 package main
 
-import "tls-test/ssl"
+import (
+	"fmt"
+	"tls-test/ssl"
+)
 
 func main() {
-	ssl.StartServer()
+	//ssl.StartServer()
+	fmt.Println(ssl.ClientGet())
 }
