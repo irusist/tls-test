@@ -1,0 +1,64 @@
+# chatgpt: 将Envoy配置为反向代理，它将接收到的请求转发给一个上游的正向代理服务器
+
+admin:
+  address:
+    socket_address:
+      protocol: TCP
+      address: 0.0.0.0
+      port_value: 9901
+static_resources:
+  listeners:
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 10000
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: local_service
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          # 使用 request_headers_to_add 添加 HTTP 请求头
+                          request_headers_to_add:
+                            - header:
+                                key: "Proxy-Authorization"
+                                value: "Basic Zm9vOmJhcg=="
+                          route:
+                            cluster: service_proxy
+                            # 使用 prefix_rewrite 来重写路径
+                            prefix_rewrite: "http://www.baidu.com/"
+                            host_rewrite_literal: www.baidu.com  # 将host头部更改为此值
+
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+    - name: service_proxy
+      type: STATIC
+      connect_timeout: 0.25s
+#      type: LOGICAL_DNS
+      lb_policy: ROUND_ROBIN
+      # 禁用了对upstream spefic协议的自动检测，并且明确设置为使用 HTTP/1 协议。
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          '@type': type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http_protocol_options: { }
+      load_assignment:
+        cluster_name: service_proxy
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 172.16.16.235
+                      port_value: 8888
