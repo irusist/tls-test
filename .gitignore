@@ -1,2 +1,6 @@
 *.iml
 main
+*.wasm
+*.tmp
+go.sum
+
