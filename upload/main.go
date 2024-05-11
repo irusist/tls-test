@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/textproto"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -44,24 +45,50 @@ func onHttpRequestHeaders(ctx wrapper.HttpContext, config MyConfig, log wrapper.
 
 	hs, err := proxywasm.GetHttpRequestHeaders()
 	if err != nil {
-		proxywasm.LogCriticalf("failed to get request headers: %v", err)
+		proxywasm.LogCriticalf("failed to get request headers: %v\n", err)
 	}
 
 	for _, h := range hs {
-		proxywasm.LogWarnf("request header <-- %s: %s", h[0], h[1])
+		proxywasm.LogWarnf("request header <-- %s: %s\n", h[0], h[1])
 	}
 
-	contentType, _ := proxywasm.GetHttpRequestHeader("content-type")
-	ctx.SetContext("contentType", contentType)
+	// 获取请求的方法
+	method, err := proxywasm.GetHttpRequestHeader(":method")
+	if err != nil {
+		log.Errorf("failed to get HTTP method: %v\n", err.Error())
+	} else {
+		log.Info("HTTP Method: " + method)
+	}
+
+	// 获取Content-Type
+	contentType, err := proxywasm.GetHttpRequestHeader("content-type")
+	if err != nil {
+		log.Errorf("failed to get Content-Type: %v\n", err.Error())
+	} else {
+		log.Info("Content-Type: " + contentType)
+	}
+
+	if method == "POST" && contentType != "" && containsMultiformTypeString(contentType, "multipart/form-data") {
+		ctx.SetContext("upload", "1")
+		ctx.SetContext("contentType", contentType)
+	}
 
 	return types.ActionContinue
 }
 
-func onHttpRequestBody(context wrapper.HttpContext, config MyConfig, body []byte, log wrapper.Log) types.Action {
+func containsMultiformTypeString(contentType, target string) bool {
+	return strings.Contains(contentType, target)
+}
+
+func onHttpRequestBody(ctx wrapper.HttpContext, config MyConfig, body []byte, log wrapper.Log) types.Action {
 	log.Debugf("upload-plugin onHttpRequestBody start...")
 
-	contextType := context.GetContext("contentType").(string)
-	parse(contextType, body)
+	upload := ctx.GetContext("upload")
+	if upload != "" {
+		contextType := ctx.GetContext("contentType").(string)
+		parse(contextType, body)
+	}
+
 	return types.ActionContinue
 
 }
