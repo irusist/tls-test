@@ -26,6 +26,11 @@ func ClientGet() string {
 				InsecureSkipVerify: true,
 			},
 		},
+		// 不进行自动重定向
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			// This function always returns an error and never follows redirects
+			return http.ErrUseLastResponse
+		},
 	}
 
 	url := "https://127.0.0.1:9443"

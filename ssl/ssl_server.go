@@ -33,6 +33,7 @@ func StartServer() {
 	// 设定路由
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("recevied request, %s", r.Header.Get("user-agent"))
+		w.Header().Set("Set-cookie", "aaa=bbb")
 		w.Write([]byte("Hello, this is a secure server!"))
 	})
 
